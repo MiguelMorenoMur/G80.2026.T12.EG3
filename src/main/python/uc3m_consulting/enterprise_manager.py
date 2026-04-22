@@ -1,4 +1,4 @@
-"""Module for enterprise management operations."""
+"""Enterprise management operations."""
 from datetime import datetime, timezone
 
 from freezegun import freeze_time
@@ -16,23 +16,23 @@ from uc3m_consulting.project_validator import ProjectValidator
 
 
 class EnterpriseManager:
-    """Class for providing the methods for managing enterprise projects and documents."""
+    """Manage enterprise projects and documents."""
 
     def __init__(self):
         pass
 
     @staticmethod
     def validate_cif(cif_code: str):
-        """Validate a CIF number."""
+        """Validate a CIF."""
         return ProjectValidator.validate_cif(cif_code)
 
     def validate_starting_date(self, t_d):
-        """Validate date format and business rules for project start date."""
+        """Validate a project starting date."""
         return ProjectValidator.validate_starting_date(t_d)
 
     @staticmethod
     def _create_project(company_cif, project_acronym, project_description, department, date, budget):
-        """Create a project entity."""
+        """Create a project."""
         return EnterpriseProject(
             company_cif=company_cif,
             project_acronym=project_acronym,
@@ -44,14 +44,14 @@ class EnterpriseManager:
 
     @staticmethod
     def _ensure_project_is_not_duplicated(projects_list, new_project):
-        """Check that the project is not duplicated."""
+        """Check that a project is not duplicated."""
         for stored_project in projects_list:
             if stored_project == new_project.to_json():
                 raise EnterpriseManagementException("Duplicated project in projects list")
 
     @staticmethod
     def _count_documents_for_date(stored_documents, date_str):
-        """Count valid documents for a specific date."""
+        """Count valid documents for a date."""
         found_documents = 0
 
         for stored_document in stored_documents:
@@ -74,7 +74,7 @@ class EnterpriseManager:
 
     @staticmethod
     def _build_report_data(date_str, found_documents):
-        """Build the report entry."""
+        """Build a report entry."""
         report_timestamp = datetime.now(timezone.utc).timestamp()
         return {
             "Querydate": date_str,
@@ -92,7 +92,7 @@ class EnterpriseManager:
         date: str,
         budget: str,
     ):
-        """Register a new project."""
+        """Register a project."""
         ProjectValidator.validate_project_inputs(
             company_cif,
             project_acronym,
@@ -120,12 +120,7 @@ class EnterpriseManager:
         return new_project.project_id
 
     def find_docs(self, date_str):
-        """
-        Generate a JSON report counting valid documents for a specific date.
-
-        Checks cryptographic hashes and timestamps to ensure historical data integrity.
-        Saves the output to the configured JSON report file.
-        """
+        """Generate the document report for a date."""
         ProjectValidator.validate_date_format(date_str)
 
         stored_documents = JsonStore.load_required(TEST_DOCUMENTS_STORE_FILE)

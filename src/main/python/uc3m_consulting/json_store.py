@@ -1,15 +1,15 @@
-"""JSON storage helper module."""
+"""JSON storage helpers."""
 import json
 
 from uc3m_consulting.enterprise_management_exception import EnterpriseManagementException
 
 
 class JsonStore:
-    """Utility class for JSON file persistence."""
+    """Persist JSON data."""
 
     @staticmethod
     def load_with_empty_default(file_path):
-        """Load a JSON file, returning an empty list if it does not exist."""
+        """Load JSON data or return an empty list."""
         try:
             with open(file_path, "r", encoding="utf-8", newline="") as file:
                 loaded_data = json.load(file)
