@@ -144,3 +144,4 @@ class ProjectValidator:
             raise EnterpriseManagementException("Invalid budget amount")
 
         return budget_value
+    
