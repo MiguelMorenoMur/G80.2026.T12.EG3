@@ -22,6 +22,49 @@ class EnterpriseManager:
         pass
 
     @staticmethod
+    def _validate_with_pattern(pattern_text, value, error_message):
+        """Validate a text value against a regex pattern."""
+        compiled_pattern = re.compile(pattern_text)
+        match_result = compiled_pattern.fullmatch(value)
+        if not match_result:
+            raise EnterpriseManagementException(error_message)
+
+    @staticmethod
+    def _validate_date_format(date_text):
+        """Validate only the date format."""
+        EnterpriseManager._validate_with_pattern(
+            r"^(([0-2]\d|3[0-1])\/(0\d|1[0-2])\/\d\d\d\d)$",
+            date_text,
+            "Invalid date format",
+        )
+        try:
+            datetime.strptime(date_text, "%d/%m/%Y").date()
+        except ValueError as ex:
+            raise EnterpriseManagementException("Invalid date format") from ex
+
+    @staticmethod
+    def _load_json_file_with_empty_default(file_path):
+        """Load a JSON file, returning an empty list if the file does not exist."""
+        try:
+            with open(file_path, "r", encoding="utf-8", newline="") as file:
+                loaded_data = json.load(file)
+        except FileNotFoundError:
+            loaded_data = []
+        except json.JSONDecodeError as ex:
+            raise EnterpriseManagementException("JSON Decode Error - Wrong JSON Format") from ex
+        return loaded_data
+
+    @staticmethod
+    def _load_required_json_file(file_path):
+        """Load a required JSON file."""
+        try:
+            with open(file_path, "r", encoding="utf-8", newline="") as file:
+                loaded_data = json.load(file)
+        except FileNotFoundError as ex:
+            raise EnterpriseManagementException("Wrong file  or file path") from ex
+        return loaded_data
+
+    @staticmethod
     def validate_cif(cif_code: str):
         """Validate a CIF number."""
         if not isinstance(cif_code, str):
@@ -68,16 +111,10 @@ class EnterpriseManager:
         return True
 
     def validate_starting_date(self, t_d):
-        """Validate date format using regex."""
-        date_pattern = re.compile(r"^(([0-2]\d|3[0-1])\/(0\d|1[0-2])\/\d\d\d\d)$")
-        match_result = date_pattern.fullmatch(t_d)
-        if not match_result:
-            raise EnterpriseManagementException("Invalid date format")
+        """Validate date format and business rules for project start date."""
+        self._validate_date_format(t_d)
 
-        try:
-            parsed_date = datetime.strptime(t_d, "%d/%m/%Y").date()
-        except ValueError as ex:
-            raise EnterpriseManagementException("Invalid date format") from ex
+        parsed_date = datetime.strptime(t_d, "%d/%m/%Y").date()
 
         if parsed_date < datetime.now(timezone.utc).date():
             raise EnterpriseManagementException("Project's date must be today or later.")
@@ -99,20 +136,21 @@ class EnterpriseManager:
         """Register a new project."""
         self.validate_cif(company_cif)
 
-        acronym_pattern = re.compile(r"^[a-zA-Z0-9]{5,10}$")
-        match_result = acronym_pattern.fullmatch(project_acronym)
-        if not match_result:
-            raise EnterpriseManagementException("Invalid acronym")
-
-        description_pattern = re.compile(r"^.{10,30}$")
-        match_result = description_pattern.fullmatch(project_description)
-        if not match_result:
-            raise EnterpriseManagementException("Invalid description format")
-
-        department_pattern = re.compile(r"(HR|FINANCE|LEGAL|LOGISTICS)")
-        match_result = department_pattern.fullmatch(department)
-        if not match_result:
-            raise EnterpriseManagementException("Invalid department")
+        self._validate_with_pattern(
+            r"^[a-zA-Z0-9]{5,10}$",
+            project_acronym,
+            "Invalid acronym",
+        )
+        self._validate_with_pattern(
+            r"^.{10,30}$",
+            project_description,
+            "Invalid description format",
+        )
+        self._validate_with_pattern(
+            r"(HR|FINANCE|LEGAL|LOGISTICS)",
+            department,
+            "Invalid department",
+        )
 
         self.validate_starting_date(date)
 
@@ -130,7 +168,7 @@ class EnterpriseManager:
         if budget_value < 50000 or budget_value > 1000000:
             raise EnterpriseManagementException("Invalid budget amount")
 
-        my_project = EnterpriseProject(
+        new_project = EnterpriseProject(
             company_cif=company_cif,
             project_acronym=project_acronym,
             project_description=project_description,
@@ -139,19 +177,13 @@ class EnterpriseManager:
             project_budget=budget,
         )
 
-        try:
-            with open(PROJECTS_STORE_FILE, "r", encoding="utf-8", newline="") as file:
-                projects_list = json.load(file)
-        except FileNotFoundError:
-            projects_list = []
-        except json.JSONDecodeError as ex:
-            raise EnterpriseManagementException("JSON Decode Error - Wrong JSON Format") from ex
+        projects_list = self._load_json_file_with_empty_default(PROJECTS_STORE_FILE)
 
         for stored_project in projects_list:
-            if stored_project == my_project.to_json():
+            if stored_project == new_project.to_json():
                 raise EnterpriseManagementException("Duplicated project in projects list")
 
-        projects_list.append(my_project.to_json())
+        projects_list.append(new_project.to_json())
 
         try:
             with open(PROJECTS_STORE_FILE, "w", encoding="utf-8", newline="") as file:
@@ -160,7 +192,7 @@ class EnterpriseManager:
             raise EnterpriseManagementException("Wrong file  or file path") from ex
         except json.JSONDecodeError as ex:
             raise EnterpriseManagementException("JSON Decode Error - Wrong JSON Format") from ex
-        return my_project.project_id
+        return new_project.project_id
 
     def find_docs(self, date_str):
         """
@@ -169,21 +201,9 @@ class EnterpriseManager:
         Checks cryptographic hashes and timestamps to ensure historical data integrity.
         Saves the output to the configured JSON report file.
         """
-        date_pattern = re.compile(r"^(([0-2]\d|3[0-1])\/(0\d|1[0-2])\/\d\d\d\d)$")
-        match_result = date_pattern.fullmatch(date_str)
-        if not match_result:
-            raise EnterpriseManagementException("Invalid date format")
+        self._validate_date_format(date_str)
 
-        try:
-            datetime.strptime(date_str, "%d/%m/%Y").date()
-        except ValueError as ex:
-            raise EnterpriseManagementException("Invalid date format") from ex
-
-        try:
-            with open(TEST_DOCUMENTS_STORE_FILE, "r", encoding="utf-8", newline="") as file:
-                stored_documents = json.load(file)
-        except FileNotFoundError as ex:
-            raise EnterpriseManagementException("Wrong file  or file path") from ex
+        stored_documents = self._load_required_json_file(TEST_DOCUMENTS_STORE_FILE)
 
         found_documents = 0
 
@@ -213,14 +233,7 @@ class EnterpriseManager:
             "Numfiles": found_documents,
         }
 
-        try:
-            with open(TEST_NUMDOCS_STORE_FILE, "r", encoding="utf-8", newline="") as file:
-                reports_list = json.load(file)
-        except FileNotFoundError:
-            reports_list = []
-        except json.JSONDecodeError as ex:
-            raise EnterpriseManagementException("JSON Decode Error - Wrong JSON Format") from ex
-
+        reports_list = self._load_json_file_with_empty_default(TEST_NUMDOCS_STORE_FILE)
         reports_list.append(report_data)
 
         try:
