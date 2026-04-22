@@ -26,6 +26,7 @@ class ProjectDocument:
         }
 
     def __signature_string(self):
+        """Build the signature source string."""
         return (
             "{alg:" + str(self.__alg)
             + ",typ:" + str(self.__type)

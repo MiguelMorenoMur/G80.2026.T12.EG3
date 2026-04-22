@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 class EnterpriseProject:
     """Class representing a project."""
 
-    # pylint: disable=too-many-arguments, too-many-positional-arguments
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
     def __init__(
         self,
         company_cif: str,

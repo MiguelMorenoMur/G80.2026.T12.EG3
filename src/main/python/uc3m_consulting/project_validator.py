@@ -2,7 +2,9 @@
 import re
 from datetime import datetime, timezone
 
-from uc3m_consulting.enterprise_management_exception import EnterpriseManagementException
+from uc3m_consulting.enterprise_management_exception import (
+    EnterpriseManagementException,
+)
 
 
 class ProjectValidator:
@@ -46,15 +48,15 @@ class ProjectValidator:
         even_sum = 0
         odd_sum = 0
 
-        for digit_index in range(len(cif_digits)):
+        for digit_index, cif_digit in enumerate(cif_digits):
             if digit_index % 2 == 0:
-                doubled_value = int(cif_digits[digit_index]) * 2
+                doubled_value = int(cif_digit) * 2
                 if doubled_value > 9:
-                    even_sum = even_sum + (doubled_value // 10) + (doubled_value % 10)
+                    even_sum += (doubled_value // 10) + (doubled_value % 10)
                 else:
-                    even_sum = even_sum + doubled_value
+                    even_sum += doubled_value
             else:
-                odd_sum = odd_sum + int(cif_digits[digit_index])
+                odd_sum += int(cif_digit)
 
         total_sum = even_sum + odd_sum
         last_digit = total_sum % 10
@@ -67,10 +69,14 @@ class ProjectValidator:
 
         if cif_letter in ("A", "B", "E", "H"):
             if str(control_digit) != control_character:
-                raise EnterpriseManagementException("Invalid CIF character control number")
+                raise EnterpriseManagementException(
+                    "Invalid CIF character control number"
+                )
         elif cif_letter in ("P", "Q", "S", "K"):
             if control_letters[control_digit] != control_character:
-                raise EnterpriseManagementException("Invalid CIF character control letter")
+                raise EnterpriseManagementException(
+                    "Invalid CIF character control letter"
+                )
         else:
             raise EnterpriseManagementException("CIF type not supported")
         return True
@@ -83,7 +89,9 @@ class ProjectValidator:
         parsed_date = datetime.strptime(date_text, "%d/%m/%Y").date()
 
         if parsed_date < datetime.now(timezone.utc).date():
-            raise EnterpriseManagementException("Project's date must be today or later.")
+            raise EnterpriseManagementException(
+                "Project's date must be today or later."
+            )
 
         if parsed_date.year < 2025 or parsed_date.year > 2050:
             raise EnterpriseManagementException("Invalid date format")
@@ -122,7 +130,9 @@ class ProjectValidator:
         try:
             budget_value = float(budget)
         except ValueError as exc:
-            raise EnterpriseManagementException("Invalid budget amount") from exc
+            raise EnterpriseManagementException(
+                "Invalid budget amount"
+            ) from exc
 
         budget_text = str(budget_value)
         if "." in budget_text:
