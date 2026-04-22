@@ -65,6 +65,17 @@ class EnterpriseManager:
         return loaded_data
 
     @staticmethod
+    def _save_json_file(file_path, data_to_store):
+        """Save data into a JSON file."""
+        try:
+            with open(file_path, "w", encoding="utf-8", newline="") as file:
+                json.dump(data_to_store, file, indent=2)
+        except FileNotFoundError as ex:
+            raise EnterpriseManagementException("Wrong file  or file path") from ex
+        except json.JSONDecodeError as ex:
+            raise EnterpriseManagementException("JSON Decode Error - Wrong JSON Format") from ex
+
+    @staticmethod
     def validate_cif(cif_code: str):
         """Validate a CIF number."""
         if not isinstance(cif_code, str):
@@ -123,19 +134,9 @@ class EnterpriseManager:
             raise EnterpriseManagementException("Invalid date format")
         return t_d
 
-    # pylint: disable=too-many-arguments, too-many-positional-arguments
-    def register_project(
-        self,
-        company_cif: str,
-        project_acronym: str,
-        project_description: str,
-        department: str,
-        date: str,
-        budget: str,
-    ):
-        """Register a new project."""
+    def _validate_project_inputs(self, company_cif, project_acronym, project_description, department, date):
+        """Validate project input fields."""
         self.validate_cif(company_cif)
-
         self._validate_with_pattern(
             r"^[a-zA-Z0-9]{5,10}$",
             project_acronym,
@@ -151,9 +152,11 @@ class EnterpriseManager:
             department,
             "Invalid department",
         )
-
         self.validate_starting_date(date)
 
+    @staticmethod
+    def _validate_budget(budget):
+        """Validate project budget and return it as float."""
         try:
             budget_value = float(budget)
         except ValueError as exc:
@@ -168,7 +171,12 @@ class EnterpriseManager:
         if budget_value < 50000 or budget_value > 1000000:
             raise EnterpriseManagementException("Invalid budget amount")
 
-        new_project = EnterpriseProject(
+        return budget_value
+
+    @staticmethod
+    def _create_project(company_cif, project_acronym, project_description, department, date, budget):
+        """Create a project entity."""
+        return EnterpriseProject(
             company_cif=company_cif,
             project_acronym=project_acronym,
             project_description=project_description,
@@ -177,34 +185,16 @@ class EnterpriseManager:
             project_budget=budget,
         )
 
-        projects_list = self._load_json_file_with_empty_default(PROJECTS_STORE_FILE)
-
+    @staticmethod
+    def _ensure_project_is_not_duplicated(projects_list, new_project):
+        """Check that the project is not duplicated."""
         for stored_project in projects_list:
             if stored_project == new_project.to_json():
                 raise EnterpriseManagementException("Duplicated project in projects list")
 
-        projects_list.append(new_project.to_json())
-
-        try:
-            with open(PROJECTS_STORE_FILE, "w", encoding="utf-8", newline="") as file:
-                json.dump(projects_list, file, indent=2)
-        except FileNotFoundError as ex:
-            raise EnterpriseManagementException("Wrong file  or file path") from ex
-        except json.JSONDecodeError as ex:
-            raise EnterpriseManagementException("JSON Decode Error - Wrong JSON Format") from ex
-        return new_project.project_id
-
-    def find_docs(self, date_str):
-        """
-        Generate a JSON report counting valid documents for a specific date.
-
-        Checks cryptographic hashes and timestamps to ensure historical data integrity.
-        Saves the output to the configured JSON report file.
-        """
-        self._validate_date_format(date_str)
-
-        stored_documents = self._load_required_json_file(TEST_DOCUMENTS_STORE_FILE)
-
+    @staticmethod
+    def _count_documents_for_date(stored_documents, date_str):
+        """Count valid documents for a specific date."""
         found_documents = 0
 
         for stored_document in stored_documents:
@@ -223,23 +213,74 @@ class EnterpriseManager:
                     else:
                         raise EnterpriseManagementException("Inconsistent document signature")
 
-        if found_documents == 0:
-            raise EnterpriseManagementException("No documents found")
+        return found_documents
 
+    @staticmethod
+    def _build_report_data(date_str, found_documents):
+        """Build the report entry."""
         report_timestamp = datetime.now(timezone.utc).timestamp()
-        report_data = {
+        return {
             "Querydate": date_str,
             "ReportDate": report_timestamp,
             "Numfiles": found_documents,
         }
 
+    # pylint: disable=too-many-arguments, too-many-positional-arguments
+    def register_project(
+        self,
+        company_cif: str,
+        project_acronym: str,
+        project_description: str,
+        department: str,
+        date: str,
+        budget: str,
+    ):
+        """Register a new project."""
+        self._validate_project_inputs(
+            company_cif,
+            project_acronym,
+            project_description,
+            department,
+            date,
+        )
+        self._validate_budget(budget)
+
+        new_project = self._create_project(
+            company_cif,
+            project_acronym,
+            project_description,
+            department,
+            date,
+            budget,
+        )
+
+        projects_list = self._load_json_file_with_empty_default(PROJECTS_STORE_FILE)
+        self._ensure_project_is_not_duplicated(projects_list, new_project)
+
+        projects_list.append(new_project.to_json())
+        self._save_json_file(PROJECTS_STORE_FILE, projects_list)
+
+        return new_project.project_id
+
+    def find_docs(self, date_str):
+        """
+        Generate a JSON report counting valid documents for a specific date.
+
+        Checks cryptographic hashes and timestamps to ensure historical data integrity.
+        Saves the output to the configured JSON report file.
+        """
+        self._validate_date_format(date_str)
+
+        stored_documents = self._load_required_json_file(TEST_DOCUMENTS_STORE_FILE)
+        found_documents = self._count_documents_for_date(stored_documents, date_str)
+
+        if found_documents == 0:
+            raise EnterpriseManagementException("No documents found")
+
+        report_data = self._build_report_data(date_str, found_documents)
+
         reports_list = self._load_json_file_with_empty_default(TEST_NUMDOCS_STORE_FILE)
         reports_list.append(report_data)
-
-        try:
-            with open(TEST_NUMDOCS_STORE_FILE, "w", encoding="utf-8", newline="") as file:
-                json.dump(reports_list, file, indent=2)
-        except FileNotFoundError as ex:
-            raise EnterpriseManagementException("Wrong file  or file path") from ex
+        self._save_json_file(TEST_NUMDOCS_STORE_FILE, reports_list)
 
         return found_documents
