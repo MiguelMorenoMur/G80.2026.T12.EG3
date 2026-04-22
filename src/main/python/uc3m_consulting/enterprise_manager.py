@@ -1,5 +1,4 @@
 """Module for enterprise management operations."""
-import json
 import re
 from datetime import datetime, timezone
 
@@ -12,6 +11,7 @@ from uc3m_consulting.enterprise_manager_config import (
     TEST_NUMDOCS_STORE_FILE,
 )
 from uc3m_consulting.enterprise_project import EnterpriseProject
+from uc3m_consulting.json_store import JsonStore
 from uc3m_consulting.project_document import ProjectDocument
 
 
@@ -41,39 +41,6 @@ class EnterpriseManager:
             datetime.strptime(date_text, "%d/%m/%Y").date()
         except ValueError as ex:
             raise EnterpriseManagementException("Invalid date format") from ex
-
-    @staticmethod
-    def _load_json_file_with_empty_default(file_path):
-        """Load a JSON file, returning an empty list if the file does not exist."""
-        try:
-            with open(file_path, "r", encoding="utf-8", newline="") as file:
-                loaded_data = json.load(file)
-        except FileNotFoundError:
-            loaded_data = []
-        except json.JSONDecodeError as ex:
-            raise EnterpriseManagementException("JSON Decode Error - Wrong JSON Format") from ex
-        return loaded_data
-
-    @staticmethod
-    def _load_required_json_file(file_path):
-        """Load a required JSON file."""
-        try:
-            with open(file_path, "r", encoding="utf-8", newline="") as file:
-                loaded_data = json.load(file)
-        except FileNotFoundError as ex:
-            raise EnterpriseManagementException("Wrong file  or file path") from ex
-        return loaded_data
-
-    @staticmethod
-    def _save_json_file(file_path, data_to_store):
-        """Save data into a JSON file."""
-        try:
-            with open(file_path, "w", encoding="utf-8", newline="") as file:
-                json.dump(data_to_store, file, indent=2)
-        except FileNotFoundError as ex:
-            raise EnterpriseManagementException("Wrong file  or file path") from ex
-        except json.JSONDecodeError as ex:
-            raise EnterpriseManagementException("JSON Decode Error - Wrong JSON Format") from ex
 
     @staticmethod
     def validate_cif(cif_code: str):
@@ -254,11 +221,11 @@ class EnterpriseManager:
             budget,
         )
 
-        projects_list = self._load_json_file_with_empty_default(PROJECTS_STORE_FILE)
+        projects_list = JsonStore.load_with_empty_default(PROJECTS_STORE_FILE)
         self._ensure_project_is_not_duplicated(projects_list, new_project)
 
         projects_list.append(new_project.to_json())
-        self._save_json_file(PROJECTS_STORE_FILE, projects_list)
+        JsonStore.save(PROJECTS_STORE_FILE, projects_list)
 
         return new_project.project_id
 
@@ -271,7 +238,7 @@ class EnterpriseManager:
         """
         self._validate_date_format(date_str)
 
-        stored_documents = self._load_required_json_file(TEST_DOCUMENTS_STORE_FILE)
+        stored_documents = JsonStore.load_required(TEST_DOCUMENTS_STORE_FILE)
         found_documents = self._count_documents_for_date(stored_documents, date_str)
 
         if found_documents == 0:
@@ -279,8 +246,8 @@ class EnterpriseManager:
 
         report_data = self._build_report_data(date_str, found_documents)
 
-        reports_list = self._load_json_file_with_empty_default(TEST_NUMDOCS_STORE_FILE)
+        reports_list = JsonStore.load_with_empty_default(TEST_NUMDOCS_STORE_FILE)
         reports_list.append(report_data)
-        self._save_json_file(TEST_NUMDOCS_STORE_FILE, reports_list)
+        JsonStore.save(TEST_NUMDOCS_STORE_FILE, reports_list)
 
         return found_documents
