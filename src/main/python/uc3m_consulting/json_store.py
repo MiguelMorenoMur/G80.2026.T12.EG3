@@ -9,6 +9,14 @@ from uc3m_consulting.enterprise_management_exception import (
 class JsonStore:
     """Persist JSON data."""
 
+    _instance = None
+
+    def __new__(cls):
+        """Create a single shared instance."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
     @staticmethod
     def load_with_empty_default(file_path):
         """Load JSON data or return an empty list."""

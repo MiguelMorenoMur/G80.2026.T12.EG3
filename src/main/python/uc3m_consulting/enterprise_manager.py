@@ -20,6 +20,14 @@ from uc3m_consulting.project_validator import ProjectValidator
 class EnterpriseManager:
     """Manage enterprise projects and documents."""
 
+    _instance = None
+
+    def __new__(cls):
+        """Create a single shared instance."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
     @staticmethod
     def validate_cif(cif_code: str):
         """Validate a CIF."""

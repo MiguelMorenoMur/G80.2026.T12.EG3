@@ -10,6 +10,14 @@ from uc3m_consulting.enterprise_management_exception import (
 class ProjectValidator:
     """Validate project input data."""
 
+    _instance = None
+
+    def __new__(cls):
+        """Create a single shared instance."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
     @staticmethod
     def validate_with_pattern(pattern_text, value, error_message):
         """Validate a value with a regex."""
@@ -144,4 +152,3 @@ class ProjectValidator:
             raise EnterpriseManagementException("Invalid budget amount")
 
         return budget_value
-    
