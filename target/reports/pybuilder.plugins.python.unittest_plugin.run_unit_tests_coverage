@@ -2,9 +2,11 @@ Name                                                 Stmts   Miss Branch BrPart 
 --------------------------------------------------------------------------------------
 uc3m_consulting\__init__.py                              5      0      0      0   100%
 uc3m_consulting\enterprise_management_exception.py      10      1      0      0    90%
-uc3m_consulting\enterprise_manager.py                  147     19     52      5    88%
+uc3m_consulting\enterprise_manager.py                   61      3     12      1    95%
 uc3m_consulting\enterprise_manager_config.py            10      0      0      0   100%
 uc3m_consulting\enterprise_project.py                   59     13      0      0    78%
+uc3m_consulting\json_store.py                           30      8      0      0    73%
 uc3m_consulting\project_document.py                     35      7      0      0    80%
+uc3m_consulting\project_validator.py                    80      3     32      4    94%
 --------------------------------------------------------------------------------------
-TOTAL                                                  266     40     52      5    86%
+TOTAL                                                  290     35     44      5    88%
